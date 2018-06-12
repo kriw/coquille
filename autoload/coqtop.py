@@ -13,6 +13,7 @@ Inl = namedtuple('Inl', ['val'])
 Inr = namedtuple('Inr', ['val'])
 
 StateId = namedtuple('StateId', ['id'])
+RouteId = namedtuple('RouteId', ['id'])
 Option = namedtuple('Option', ['val'])
 
 OptionState = namedtuple('OptionState', ['sync', 'depr', 'name', 'value'])
@@ -29,7 +30,7 @@ def parse_response(xml):
     if xml.get('val') == 'good':
         return Ok(parse_value(xml[0]), None)
     elif xml.get('val') == 'fail':
-        print('err: %s' % ET.tostring(xml))
+        # print('err: %s' % ET.tostring(xml))
         return Err(parse_error(xml))
     else:
         assert False, 'expected "good" or "fail" in <value>'
@@ -50,6 +51,9 @@ def parse_value(xml):
         return int(xml.text)
     elif xml.tag == 'state_id':
         return StateId(int(xml.get('val')))
+    # XXX
+    elif xml.tag == 'route_id':
+        return RouteId(int(xml.get('val')))
     elif xml.tag == 'list':
         return [parse_value(c) for c in xml]
     elif xml.tag == 'option':
@@ -114,6 +118,8 @@ def encode_value(v):
         return xml
     elif isinstance(v, StateId):
         return build('state_id', str(v.id))
+    elif isinstance(v, RouteId):
+        return build('route_id', str(v.id))
     elif isinstance(v, list):
         return build('list', None, [encode_value(c) for c in v])
     elif isinstance(v, Option):
@@ -138,6 +144,7 @@ def encode_value(v):
 coqtop = None
 states = []
 state_id = None
+route_id = RouteId(0)
 root_state = None
 
 def kill_coqtop():
@@ -179,6 +186,15 @@ def get_answer():
                             messageNode = messageNode + "\n\n" + parse_value(c[2])
                         else:
                             messageNode = parse_value(c[2])
+                    if c.tag == 'feedback':
+                        for _c in filter(lambda x: x.tag == 'feedback_content', c):
+                            contents = _c
+                            for msgTag in filter(lambda x: x.tag == 'message', contents):
+                                if messageNode is not None:
+                                    messageNode = messageNode + "\n\n" + parse_value(msgTag[2])
+                                else:
+                                    messageNode = parse_value(msgTag[2])
+
                 if shouldWait:
                     continue
                 else:
@@ -265,7 +281,7 @@ def rewind(step = 1):
     return call('Edit_at', state_id)
 
 def query(cmd, encoding = 'utf-8'):
-    r = call('Query', (cmd, cur_state()), encoding)
+    r = call('Query', (route_id, (cmd, cur_state())), encoding)
     return r
 
 def goals():

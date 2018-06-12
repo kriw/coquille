@@ -198,14 +198,19 @@ def show_goal():
         print('ERROR: the Coq process died')
         return
 
-    if response.msg is not None:
+    if hasattr(response, 'msg') and response.msg is not None:
         info_msg = response.msg
 
-    if response.val.val is None:
+    if hasattr(response, 'val') and hasattr(response.val, 'val'):
+        val = response.val.val
+    else:
+        val = None
+
+    if val is None:
         buff.append('No goals.')
         return
 
-    goals = response.val.val
+    goals = val
 
     sub_goals = goals.fg
 
